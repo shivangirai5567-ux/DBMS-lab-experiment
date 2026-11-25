@@ -1,0 +1,263 @@
+-- DBMS EXPERIMENT 2
+-- E-commerce ER Diagram to Relational Schema
+-- MySQL source code
+-- Run this script in MySQL Workbench or the MySQL command line.
+
+CREATE DATABASE IF NOT EXISTS ECOMMERCE_ER;
+USE ECOMMERCE_ER;
+
+-- Optional: uncomment these lines if you want to rebuild the database from scratch.
+-- SET FOREIGN_KEY_CHECKS = 0;
+-- DROP TABLE IF EXISTS DELIVERY, PAYMENT, ORDERITEM, ORDERS, GROCERY,
+--     CLOTHING, ELECTRONICS, PRODUCT_SELLER, PRODUCT, CATEGORY,
+--     SELLER, ADDRESS, CUSTOMER_PHONE, CUSTOMER;
+-- SET FOREIGN_KEY_CHECKS = 1;
+
+-- 1. CUSTOMER
+CREATE TABLE CUSTOMER (
+    CustomerID INT PRIMARY KEY,
+    First_Name VARCHAR(30) NOT NULL,
+    Last_Name VARCHAR(30) NOT NULL,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Date_of_Birth DATE NOT NULL
+) ENGINE = InnoDB;
+
+-- 2. CUSTOMER_PHONE: one customer can have multiple phone numbers
+CREATE TABLE CUSTOMER_PHONE (
+    CustomerID INT NOT NULL,
+    Phone VARCHAR(15) NOT NULL,
+    PRIMARY KEY (CustomerID, Phone),
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMER(CustomerID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 3. ADDRESS
+CREATE TABLE ADDRESS (
+    AddressID INT PRIMARY KEY,
+    House_No VARCHAR(10),
+    Street VARCHAR(50),
+    City VARCHAR(30) NOT NULL,
+    State VARCHAR(50) NOT NULL,
+    PIN_Code VARCHAR(10) NOT NULL,
+    Address_Type VARCHAR(20),
+    CustomerID INT NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMER(CustomerID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 4. SELLER
+CREATE TABLE SELLER (
+    SellerID INT PRIMARY KEY,
+    Seller_Name VARCHAR(50) NOT NULL,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Phone VARCHAR(15),
+    GSTIN VARCHAR(20) NOT NULL UNIQUE
+) ENGINE = InnoDB;
+
+-- 5. CATEGORY
+CREATE TABLE CATEGORY (
+    CategoryID INT PRIMARY KEY,
+    Category_Name VARCHAR(50) NOT NULL UNIQUE,
+    Description VARCHAR(150)
+) ENGINE = InnoDB;
+
+-- 6. PRODUCT
+-- CategoryID is nullable so ON DELETE SET NULL can be demonstrated.
+CREATE TABLE PRODUCT (
+    ProductID INT PRIMARY KEY,
+    Product_Name VARCHAR(100) NOT NULL,
+    Price DECIMAL(10,2) NOT NULL,
+    Description VARCHAR(200),
+    Stock_Quantity INT NOT NULL DEFAULT 0,
+    Brand VARCHAR(50),
+    CategoryID INT NULL,
+    FOREIGN KEY (CategoryID) REFERENCES CATEGORY(CategoryID)
+        ON DELETE SET NULL
+) ENGINE = InnoDB;
+
+-- 7. PRODUCT_SELLER: many-to-many relationship between products and sellers
+CREATE TABLE PRODUCT_SELLER (
+    ProductID INT NOT NULL,
+    SellerID INT NOT NULL,
+    PRIMARY KEY (ProductID, SellerID),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCT(ProductID)
+        ON DELETE CASCADE,
+    FOREIGN KEY (SellerID) REFERENCES SELLER(SellerID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 8. ELECTRONICS: subtype of PRODUCT
+CREATE TABLE ELECTRONICS (
+    ProductID INT PRIMARY KEY,
+    Warranty_Period VARCHAR(30),
+    Model_Number VARCHAR(50),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCT(ProductID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 9. CLOTHING: subtype of PRODUCT
+CREATE TABLE CLOTHING (
+    ProductID INT PRIMARY KEY,
+    Size VARCHAR(10),
+    Colour VARCHAR(30),
+    Material VARCHAR(30),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCT(ProductID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 10. GROCERY: subtype of PRODUCT
+CREATE TABLE GROCERY (
+    ProductID INT PRIMARY KEY,
+    Expiry_Date DATE,
+    Weight DECIMAL(8,2),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCT(ProductID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 11. ORDERS
+CREATE TABLE ORDERS (
+    OrderID INT PRIMARY KEY,
+    Order_Date DATE NOT NULL,
+    Order_Status VARCHAR(20) NOT NULL,
+    Total_Amount DECIMAL(10,2) NOT NULL,
+    CustomerID INT NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMER(CustomerID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 12. ORDERITEM
+CREATE TABLE ORDERITEM (
+    OrderID INT NOT NULL,
+    ProductID INT NOT NULL,
+    Quantity INT NOT NULL,
+    Unit_Price DECIMAL(10,2) NOT NULL,
+    Subtotal DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (OrderID, ProductID),
+    FOREIGN KEY (OrderID) REFERENCES ORDERS(OrderID)
+        ON DELETE CASCADE,
+    FOREIGN KEY (ProductID) REFERENCES PRODUCT(ProductID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 13. PAYMENT
+CREATE TABLE PAYMENT (
+    PaymentID INT PRIMARY KEY,
+    Payment_Date DATE NOT NULL,
+    Amount DECIMAL(10,2) NOT NULL,
+    Payment_Method VARCHAR(30) NOT NULL,
+    Payment_Status VARCHAR(20) NOT NULL,
+    TransactionID VARCHAR(30) UNIQUE,
+    OrderID INT NOT NULL UNIQUE,
+    FOREIGN KEY (OrderID) REFERENCES ORDERS(OrderID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- 14. DELIVERY
+CREATE TABLE DELIVERY (
+    DeliveryID INT PRIMARY KEY,
+    Delivery_Date DATE NULL,
+    Delivery_Status VARCHAR(20) NOT NULL,
+    Tracking_ID VARCHAR(30) UNIQUE,
+    Delivery_Partner VARCHAR(50),
+    OrderID INT NOT NULL UNIQUE,
+    FOREIGN KEY (OrderID) REFERENCES ORDERS(OrderID)
+        ON DELETE CASCADE
+) ENGINE = InnoDB;
+
+-- SAMPLE DATA
+INSERT INTO CUSTOMER
+    (CustomerID, First_Name, Last_Name, Email, Date_of_Birth)
+VALUES
+    (1, 'Sweksha', 'Singh', 'swek6105@gmail.com', '2006-04-15');
+
+INSERT INTO CUSTOMER_PHONE (CustomerID, Phone)
+VALUES
+    (1, '9939970621'),
+    (1, '9873921570');
+
+INSERT INTO ADDRESS
+    (AddressID, House_No, Street, City, State, PIN_Code, Address_Type, CustomerID)
+VALUES
+    (401, '307', 'Gandhinagar', 'Rochas', 'Bihar', '821112', 'Home', 1);
+
+INSERT INTO SELLER (SellerID, Seller_Name, Email, Phone, GSTIN)
+VALUES
+    (101, 'TechStore India', 'tech@gmail.com', '9123456789', 'GST1234567');
+
+INSERT INTO CATEGORY (CategoryID, Category_Name, Description)
+VALUES
+    (201, 'Electronics', 'Electronic gadgets and accessories');
+
+INSERT INTO PRODUCT
+    (ProductID, Product_Name, Price, Description, Stock_Quantity, Brand, CategoryID)
+VALUES
+    (301, 'Gaming Laptop', 75000.00, '15.6 inch, RTX graphics', 10, 'ASUS', 201);
+
+INSERT INTO ELECTRONICS (ProductID, Warranty_Period, Model_Number)
+VALUES
+    (301, '2 Years', 'ASUS-TUF-F15');
+
+INSERT INTO PRODUCT_SELLER (ProductID, SellerID)
+VALUES
+    (301, 101);
+
+INSERT INTO ORDERS
+    (OrderID, Order_Date, Order_Status, Total_Amount, CustomerID)
+VALUES
+    (501, '2026-08-14', 'Placed', 75000.00, 1);
+
+INSERT INTO ORDERITEM
+    (OrderID, ProductID, Quantity, Unit_Price, Subtotal)
+VALUES
+    (501, 301, 1, 75000.00, 75000.00);
+
+INSERT INTO PAYMENT
+    (PaymentID, Payment_Date, Amount, Payment_Method, Payment_Status, TransactionID, OrderID)
+VALUES
+    (601, '2026-08-14', 75000.00, 'UPI', 'Paid', 'TXN123', 501);
+
+INSERT INTO DELIVERY
+    (DeliveryID, Delivery_Date, Delivery_Status, Tracking_ID, Delivery_Partner, OrderID)
+VALUES
+    (701, NULL, 'Processing', 'TRK123', 'Delivery', 501);
+
+-- OUTPUT 1: list all tables
+SHOW TABLES;
+
+-- OUTPUT 2: inspect sample data
+SELECT * FROM CUSTOMER;
+SELECT * FROM PRODUCT;
+SELECT * FROM ORDERS;
+
+-- OUTPUT 3: demonstrate a referential integrity violation.
+-- This INSERT should fail because CustomerID 999 does not exist in CUSTOMER.
+-- Run separately if your SQL client stops executing after an error.
+INSERT INTO ORDERS
+    (OrderID, Order_Date, Order_Status, Total_Amount, CustomerID)
+VALUES
+    (502, '2026-08-14', 'Placed', 50000.00, 999);
+
+-- OUTPUT 4: demonstrate ON DELETE SET NULL.
+-- Product 301 remains, but its CategoryID becomes NULL.
+DELETE FROM CATEGORY WHERE CategoryID = 201;
+SELECT ProductID, Product_Name, CategoryID
+FROM PRODUCT
+WHERE ProductID = 301;
+
+-- OUTPUT 5: demonstrate ON DELETE CASCADE.
+-- This deletes the customer's orders, order items, payment, delivery,
+-- address and phone rows through the foreign-key cascade rules.
+DELETE FROM CUSTOMER WHERE CustomerID = 1;
+
+-- OUTPUT 6: verify that the dependent rows have been removed.
+SELECT 'ORDERS' AS Table_Name, COUNT(*) AS Row_Count_After_Delete FROM ORDERS
+UNION ALL
+SELECT 'ORDERITEM', COUNT(*) FROM ORDERITEM
+UNION ALL
+SELECT 'PAYMENT', COUNT(*) FROM PAYMENT
+UNION ALL
+SELECT 'DELIVERY', COUNT(*) FROM DELIVERY
+UNION ALL
+SELECT 'ADDRESS', COUNT(*) FROM ADDRESS
+UNION ALL
+SELECT 'CUSTOMER_PHONE', COUNT(*) FROM CUSTOMER_PHONE;
