@@ -1,0 +1,212 @@
+-- ============================================================
+-- DBMS EXPERIMENT 4
+-- Employee–Department–Project Database
+-- MySQL 8.0+
+--
+-- Prerequisite:
+-- Run the Experiment 3 script first. This experiment reuses:
+-- Department(dept_id, dept_name, location)
+-- Project(project_id, project_name, budget)
+-- Employee(emp_id, emp_name, dept_id, salary, hire_date)
+-- Employee_Project(emp_id, project_id, hours_worked)
+-- ============================================================
+
+USE enterprise_db;
+
+-- ============================================================
+-- 1. INNER JOIN
+-- Employee names with their department and location
+-- ============================================================
+
+SELECT
+    e.emp_id,
+    e.emp_name,
+    d.dept_name,
+    d.location
+FROM Employee AS e
+INNER JOIN Department AS d
+    ON e.dept_id = d.dept_id
+ORDER BY d.dept_name, e.emp_name;
+
+-- ============================================================
+-- 2. LEFT JOIN
+-- Retain every employee and show project details when available
+-- ============================================================
+
+SELECT
+    e.emp_name,
+    d.dept_name,
+    p.project_name
+FROM Employee AS e
+LEFT JOIN Department AS d
+    ON e.dept_id = d.dept_id
+LEFT JOIN Employee_Project AS ep
+    ON e.emp_id = ep.emp_id
+LEFT JOIN Project AS p
+    ON ep.project_id = p.project_id
+ORDER BY e.emp_id, p.project_name;
+
+-- ============================================================
+-- 3. SELF-JOIN
+-- Compare pairs of employees from the same department
+-- ============================================================
+
+SELECT
+    a.emp_name AS employee_a,
+    b.emp_name AS employee_b,
+    d.dept_name
+FROM Employee AS a
+JOIN Employee AS b
+    ON a.dept_id = b.dept_id
+   AND a.emp_id < b.emp_id
+JOIN Department AS d
+    ON a.dept_id = d.dept_id
+ORDER BY d.dept_name, employee_a, employee_b;
+
+-- ============================================================
+-- 4. THREE-WAY / MULTI-TABLE JOIN
+-- Employee, project, department and hours worked
+-- ============================================================
+
+SELECT
+    e.emp_name,
+    d.dept_name,
+    p.project_name,
+    ep.hours_worked
+FROM Employee AS e
+JOIN Department AS d
+    ON e.dept_id = d.dept_id
+JOIN Employee_Project AS ep
+    ON e.emp_id = ep.emp_id
+JOIN Project AS p
+    ON ep.project_id = p.project_id
+WHERE ep.hours_worked >= 120
+ORDER BY ep.hours_worked DESC, e.emp_name;
+
+-- ============================================================
+-- 5. CORRELATED SUBQUERY
+-- Employees earning above their own department's average salary
+-- ============================================================
+
+SELECT
+    e.emp_name,
+    e.dept_id,
+    e.salary
+FROM Employee AS e
+WHERE e.salary > (
+    SELECT AVG(e2.salary)
+    FROM Employee AS e2
+    WHERE e2.dept_id = e.dept_id
+)
+ORDER BY e.salary DESC;
+
+-- ============================================================
+-- 6. EXISTS
+-- Departments having at least one employee earning above 85000
+-- ============================================================
+
+SELECT
+    d.dept_id,
+    d.dept_name
+FROM Department AS d
+WHERE EXISTS (
+    SELECT 1
+    FROM Employee AS e
+    WHERE e.dept_id = d.dept_id
+      AND e.salary > 85000
+)
+ORDER BY d.dept_id;
+
+-- ============================================================
+-- 7. SIMULATED INTERSECT USING EXISTS
+-- Employees assigned to a project and belonging to a department
+-- whose average salary is above 75000
+-- ============================================================
+
+SELECT
+    e.emp_id,
+    e.emp_name
+FROM Employee AS e
+WHERE EXISTS (
+    SELECT 1
+    FROM Employee_Project AS ep
+    WHERE ep.emp_id = e.emp_id
+)
+AND e.dept_id IN (
+    SELECT e2.dept_id
+    FROM Employee AS e2
+    GROUP BY e2.dept_id
+    HAVING AVG(e2.salary) > 75000
+)
+ORDER BY e.emp_id;
+
+-- ============================================================
+-- 8. SIMULATED EXCEPT USING NOT EXISTS
+-- Employees not assigned to the Predictive AI project
+-- ============================================================
+
+SELECT
+    e.emp_id,
+    e.emp_name
+FROM Employee AS e
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM Employee_Project AS ep
+    JOIN Project AS p
+        ON ep.project_id = p.project_id
+    WHERE ep.emp_id = e.emp_id
+      AND p.project_name = 'Predictive AI'
+)
+ORDER BY e.emp_id;
+
+-- ============================================================
+-- 9. EXPLAIN
+-- Inspect execution plan for the project workload join
+-- ============================================================
+
+EXPLAIN
+SELECT
+    e.emp_name,
+    d.dept_name,
+    p.project_name,
+    ep.hours_worked
+FROM Employee AS e
+JOIN Department AS d
+    ON e.dept_id = d.dept_id
+JOIN Employee_Project AS ep
+    ON e.emp_id = ep.emp_id
+JOIN Project AS p
+    ON ep.project_id = p.project_id
+WHERE ep.hours_worked >= 120
+ORDER BY ep.hours_worked DESC, e.emp_name;
+
+-- ============================================================
+-- 10. EXPLAIN
+-- Inspect execution plan for the correlated salary query
+-- ============================================================
+
+EXPLAIN
+SELECT
+    e.emp_name,
+    e.salary
+FROM Employee AS e
+WHERE e.salary > (
+    SELECT AVG(e2.salary)
+    FROM Employee AS e2
+    WHERE e2.dept_id = e.dept_id
+);
+
+-- ============================================================
+-- OPTIONAL: indexes that can help query access
+-- The primary keys and foreign-key columns are already indexed
+-- by MySQL as applicable. This index can help department salary
+-- lookups used by the correlated subquery.
+-- Run only if this index does not already exist.
+-- ============================================================
+
+-- CREATE INDEX idx_employee_dept_salary
+-- ON Employee (dept_id, salary);
+
+-- ============================================================
+-- END OF EXPERIMENT 4
+-- ============================================================
